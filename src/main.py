@@ -4,6 +4,8 @@ import random
 import sqlite3
 import os
 
+import argparse
+
 from telegram import Update
 from telegram.ext import CallbackContext, CommandHandler, Updater
 
@@ -14,6 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+DB_PATH = None
 
 TOKEN = os.environ['TOKEN']
 break_generator_chance = 5
@@ -52,7 +55,7 @@ def get_user_identity(update: Update) -> str:
 
 
 def generate_dogs(num):
-    conn = sqlite3.connect("dog_breeds.db")
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
     cursor.execute("SELECT name, url FROM breeds ORDER BY RANDOM() LIMIT ?", (num,))
@@ -72,7 +75,7 @@ def generate_dogs(num):
 def generate_dog_stats(num_dogs):
     breeds_with_counts = generate_dogs(num_dogs)
 
-    conn = sqlite3.connect("dog_breeds.db")
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
     for breed, count in breeds_with_counts:
@@ -113,7 +116,7 @@ def stats(update: Update, context: CallbackContext) -> None:
     user_identity = get_user_identity(update)
     logger.info(f"{user_identity} wants to know stats")
 
-    conn = sqlite3.connect("dog_breeds.db")
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
     cursor.execute("SELECT SUM(total_generated) FROM breeds")
@@ -131,7 +134,15 @@ def stats(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(message_text, parse_mode="Markdown", disable_web_page_preview=True)
     conn.close()
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="A Telegram bot that generates random dog breeds.")
+    parser.add_argument("--db-path", help="The path to the SQLite database file.")
+    return parser.parse_args()
+
 def main() -> None:
+    args = parse_args()
+    DB_PATH = args.db_path
+
     updater = Updater(token=TOKEN, use_context=True)
     dispatcher = updater.dispatcher
 
@@ -141,7 +152,6 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("stats", stats))
     dispatcher.add_handler(CommandHandler("help", help_command))
 
-    # Add an error handler
     dispatcher.add_error_handler(error_handler)
 
     updater.start_polling()

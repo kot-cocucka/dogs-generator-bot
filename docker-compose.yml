@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  bot:
+    build: .
+    volumes:
+      - .:/app
+      - data_volume:/app/data
+    restart: always
+    env_file:
+      - .env
+
+volumes:
+  data_volume:
